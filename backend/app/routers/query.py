@@ -449,9 +449,9 @@ async def execute_query(
 ):
     """
     Submit a SQL query for execution.
-    
+
     Requires X-Session-ID header from successful /api/connect.
-    
+
     Response codes:
     - 200 { status: 'SUCCESS', ... } -> query executed successfully
     - 200 { status: 'FAILED', ... } -> SQL error (syntax, permissions, etc.)

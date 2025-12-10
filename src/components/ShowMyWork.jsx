@@ -72,7 +72,14 @@ function StepCard({ step, isExpanded, onToggle }) {
           <div className="bg-white/50 rounded p-2 mb-2 font-mono text-xs overflow-x-auto">
             {step.sql_snippet}
           </div>
-          <p className="text-sm" dangerouslySetInnerHTML={{ __html: step.explanation.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+          <p className="text-sm">
+            {step.explanation.split(/(\*\*.*?\*\*)/).map((part, idx) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={idx}>{part.slice(2, -2)}</strong>;
+              }
+              return part;
+            })}
+          </p>
           {step.tip && (
             <div className="flex items-start gap-2 mt-2 p-2 bg-white/50 rounded text-xs">
               <Lightbulb size={14} className="flex-shrink-0 mt-0.5" />

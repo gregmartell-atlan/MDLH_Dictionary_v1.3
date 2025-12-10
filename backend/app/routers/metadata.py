@@ -15,12 +15,23 @@ router = APIRouter(prefix="/api/metadata", tags=["metadata"])
 
 
 def _validate_identifier(name: str) -> str:
-    """Validate and quote Snowflake identifier to prevent SQL injection."""
-    if not name or not re.match(r'^[A-Za-z_][A-Za-z0-9_$]*$', name):
-        if not re.match(r'^"[^"]*"$', name):  # Already quoted
-            # Quote the identifier
-            name = '"' + name.replace('"', '""') + '"'
-    return name
+    """Validate and quote Snowflake identifier to prevent SQL injection.
+
+    Security: Always strips quotes first, validates the clean name, then re-quotes.
+    This prevents attackers from bypassing validation with pre-quoted malicious input.
+    """
+    if not name:
+        raise ValueError("Identifier cannot be empty")
+
+    # Always strip quotes first to prevent bypass attacks
+    clean_name = name.strip('"')
+
+    # Validate clean name against allowed characters
+    if not re.match(r'^[A-Za-z_][A-Za-z0-9_$]*$', clean_name):
+        raise ValueError(f"Invalid identifier: {clean_name[:50]}")
+
+    # Always return quoted identifier for consistency
+    return f'"{clean_name}"'
 
 
 def _get_session_or_none(session_id: Optional[str]):
@@ -219,8 +230,7 @@ async def list_tables(
 
     try:
         safe_db = _validate_identifier(database)
-        # Use single-quoted string literal for schema name in WHERE clause
-        safe_schema_literal = schema.replace("'", "''")
+        safe_schema = _validate_identifier(schema)
 
         cursor = session.conn.cursor()
 
@@ -234,7 +244,7 @@ async def list_tables(
                         COALESCE(querycount, 0) AS query_count,
                         COALESCE(queryusercount, 0) AS unique_users,
                         COALESCE(popularityscore, 0) AS popularity_score
-                    FROM {safe_db}.{_validate_identifier(schema)}.TABLE_ENTITY
+                    FROM {safe_db}.{safe_schema}.TABLE_ENTITY
                     WHERE name IS NOT NULL
                 """)
                 for row in cursor.fetchall():
@@ -249,7 +259,7 @@ async def list_tables(
                 logger.debug(f"[Metadata] Could not fetch popularity data: {pop_err}")
 
         # Query INFORMATION_SCHEMA for accurate row counts
-        # This is more reliable than SHOW TABLES which can have stale row_count
+        # Use parameterized query for schema name to prevent SQL injection
         cursor.execute(f"""
             SELECT
                 table_name,
@@ -259,10 +269,10 @@ async def list_tables(
                 table_owner,
                 comment
             FROM {safe_db}.INFORMATION_SCHEMA.TABLES
-            WHERE table_schema = '{safe_schema_literal}'
+            WHERE table_schema = %s
             AND table_type IN ('BASE TABLE', 'VIEW')
             ORDER BY row_count DESC NULLS LAST
-        """)
+        """, (schema,))
         
         tables = []
         for row in cursor.fetchall():
@@ -397,22 +407,15 @@ async def list_changed_tables(
 
     try:
         safe_db = _validate_identifier(database)
-        safe_schema_literal = schema.replace("'", "''")
-
-        # Validate timestamp format (ISO 8601)
-        # Basic validation: must look like a timestamp, no SQL injection characters
-        import re
-        if not re.match(r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}', since):
+        # Validate timestamp format (ISO 8601) strictly
+        if not re.match(r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:?\d{2})?$', since):
             logger.warning(f"[Metadata] Invalid timestamp format: {since}")
             return []
-
-        # Escape single quotes (though valid timestamps shouldn't have them)
-        safe_since = since.replace("'", "''")
 
         cursor = session.conn.cursor()
 
         # Query for tables modified since the given timestamp
-        # Use TRY_TO_TIMESTAMP for safer parsing
+        # Use parameterized query to prevent SQL injection
         cursor.execute(f"""
             SELECT
                 table_name,
@@ -423,11 +426,11 @@ async def list_changed_tables(
                 comment,
                 last_altered
             FROM {safe_db}.INFORMATION_SCHEMA.TABLES
-            WHERE table_schema = '{safe_schema_literal}'
+            WHERE table_schema = %s
             AND table_type IN ('BASE TABLE', 'VIEW')
-            AND last_altered > TRY_TO_TIMESTAMP_NTZ('{safe_since}')
+            AND last_altered > TRY_TO_TIMESTAMP_NTZ(%s)
             ORDER BY last_altered DESC
-        """)
+        """, (schema, since))
 
         changed_tables = []
         for row in cursor.fetchall():
@@ -515,19 +518,20 @@ async def list_popular_tables(
             # TABLE_ENTITY doesn't exist or has different schema - fall back to row_count
             logger.debug(f"[Metadata] Could not query TABLE_ENTITY: {entity_err}, falling back to row_count")
 
-            safe_schema_literal = schema.replace("'", "''")
+            # Use parameterized query for schema name to prevent SQL injection
+            # Note: LIMIT must be interpolated as Snowflake doesn't support parameterized LIMIT
             cursor.execute(f"""
                 SELECT
                     table_name,
                     row_count,
                     bytes
                 FROM {safe_db}.INFORMATION_SCHEMA.TABLES
-                WHERE table_schema = '{safe_schema_literal}'
+                WHERE table_schema = %s
                 AND table_type = 'BASE TABLE'
                 AND row_count > 0
                 ORDER BY row_count DESC NULLS LAST
                 LIMIT {safe_limit}
-            """)
+            """, (schema,))
 
             popular_tables = []
             for row in cursor.fetchall():

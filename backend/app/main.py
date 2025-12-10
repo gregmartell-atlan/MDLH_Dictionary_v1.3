@@ -2,13 +2,37 @@
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import uvicorn
 import time
 import uuid
 from datetime import datetime
 
 from app.config import settings
+
+# =============================================================================
+# RATE LIMITING
+# =============================================================================
+# Global rate limiter to prevent abuse
+# Uses IP address as the key for rate limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+
+
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """Custom rate limit handler that includes CORS headers."""
+    response = JSONResponse(
+        status_code=429,
+        content={"error": "Rate limit exceeded", "detail": str(exc.detail)}
+    )
+    # Add CORS headers so browser doesn't block the response
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # =============================================================================
 # SERVER INSTANCE ID
@@ -73,6 +97,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Configure rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Add timing middleware FIRST (outermost)
 app.add_middleware(TimingMiddleware)

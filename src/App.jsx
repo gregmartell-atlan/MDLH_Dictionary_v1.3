@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Download, Copy, Check, Code2, X, Search, Command, Play, Loader2, Sparkles, ArrowLeft, Database, Snowflake, Wifi, WifiOff, ChevronDown, Zap, Layers } from 'lucide-react';
+import ErrorBoundary from './components/ErrorBoundary';
 import QueryEditor from './components/QueryEditor';
 import ShowMyWork from './components/ShowMyWork';
 import FlyoutQueryEditor from './components/FlyoutQueryEditor';
@@ -1401,68 +1402,75 @@ export default function App() {
 
   // Skip filtering for editor tab
   // Filter entities - optionally only show those with available tables
-  const filteredData = activeTab === 'editor' ? [] : (data[activeTab] || []).filter(row => {
-    // Search filter
-    const matchesSearch = Object.values(row).some(val => 
-      val?.toString().toLowerCase().includes(search.toLowerCase())
-    );
-    if (!matchesSearch) return false;
-    
-    // Availability filter (only when connected and filter is enabled)
-    if (showOnlyAvailable && isConnected && discoveredTables.size > 0) {
-      // Abstract tables are always shown
-      if (row.table === '(abstract)') return true;
-      // Check if table exists
-      return discoveredTables.has(row.table?.toUpperCase());
-    }
-    
-    return true;
-  });
+  // Memoized to prevent expensive re-computation on every render
+  const filteredData = useMemo(() => {
+    if (activeTab === 'editor') return [];
+    return (data[activeTab] || []).filter(row => {
+      // Search filter
+      const matchesSearch = Object.values(row).some(val =>
+        val?.toString().toLowerCase().includes(search.toLowerCase())
+      );
+      if (!matchesSearch) return false;
+
+      // Availability filter (only when connected and filter is enabled)
+      if (showOnlyAvailable && isConnected && discoveredTables.size > 0) {
+        // Abstract tables are always shown
+        if (row.table === '(abstract)') return true;
+        // Check if table exists
+        return discoveredTables.has(row.table?.toUpperCase());
+      }
+
+      return true;
+    });
+  }, [activeTab, search, showOnlyAvailable, isConnected, discoveredTables]);
 
   // Filter and enhance queries with validation status
   // Use merged queries which include user research queries
   // CRITICAL: Filter out queries that reference non-existent tables!
-  const filteredQueries = (mergedExampleQueries[activeTab] || exampleQueries[activeTab] || []).map((q, index) => {
-    const queryId = `${activeTab}-${index}`;
-    const validation = queryValidationMap.get(queryId);
-    
-    // If no pre-computed validation, do inline validation against discovered tables
-    // This catches any queries with hardcoded entity names that don't exist
-    let inlineValidation = null;
-    if (!validation && isConnected && discoveredTables.size > 0) {
-      inlineValidation = validateQueryTables(q.query, discoveredTables);
-    }
-    
-    return {
-      ...q,
-      // Use fixed query if available
-      query: validation?.fixedQuery || q.query,
-      validation: validation || inlineValidation,
-      queryId
-    };
-  }).filter(q => {
-    // Search filter
-    const matchesSearch = 
-      q.title.toLowerCase().includes(search.toLowerCase()) ||
-      q.description.toLowerCase().includes(search.toLowerCase()) ||
-      q.query.toLowerCase().includes(search.toLowerCase());
-    if (!matchesSearch) return false;
-    
-    // Availability filter - ALWAYS filter when connected with discovered tables
-    // This is the KEY fix: filter out queries that reference non-existent tables
-    if (isConnected && discoveredTables.size > 0) {
-      // Use pre-computed validation or inline validation
-      const isValid = q.validation?.valid !== false;
-      
-      // If showOnlyAvailable is off, show everything but mark unavailable ones
-      // If showOnlyAvailable is on, only show valid queries
-      if (showOnlyAvailable) {
-        return isValid;
+  // Memoized to prevent expensive re-computation on every render
+  const filteredQueries = useMemo(() => {
+    return (mergedExampleQueries[activeTab] || exampleQueries[activeTab] || []).map((q, index) => {
+      const queryId = `${activeTab}-${index}`;
+      const validation = queryValidationMap.get(queryId);
+
+      // If no pre-computed validation, do inline validation against discovered tables
+      // This catches any queries with hardcoded entity names that don't exist
+      let inlineValidation = null;
+      if (!validation && isConnected && discoveredTables.size > 0) {
+        inlineValidation = validateQueryTables(q.query, discoveredTables);
       }
-    }
-    
-    return true;
-  });
+
+      return {
+        ...q,
+        // Use fixed query if available
+        query: validation?.fixedQuery || q.query,
+        validation: validation || inlineValidation,
+        queryId
+      };
+    }).filter(q => {
+      // Search filter
+      const matchesSearch =
+        q.title.toLowerCase().includes(search.toLowerCase()) ||
+        q.description.toLowerCase().includes(search.toLowerCase()) ||
+        q.query.toLowerCase().includes(search.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // Availability filter - ALWAYS filter when connected with discovered tables
+      // This is the KEY fix: filter out queries that reference non-existent tables
+      if (isConnected && discoveredTables.size > 0) {
+        // Use pre-computed validation or inline validation
+        const isValid = q.validation?.valid !== false;
+
+        // If showOnlyAvailable is off, show everything but mark unavailable ones
+        // If showOnlyAvailable is on, only show valid queries
+        if (showOnlyAvailable) {
+          return isValid;
+        }
+      }
+
+      return true;
+    });
+  }, [activeTab, search, showOnlyAvailable, isConnected, discoveredTables, mergedExampleQueries, exampleQueries, queryValidationMap]);
   
   // Count available vs total for display
   const totalEntities = (data[activeTab] || []).length;
@@ -1612,6 +1620,7 @@ export default function App() {
   };
 
   return (
+    <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
     <SystemConfigProvider>
     <div className="min-h-screen bg-white text-gray-900">
       {/* Navigation Bar - DuckDB style: clean white, minimal */}
@@ -2298,5 +2307,6 @@ export default function App() {
       <CommandPalette open={isCmdOpen} onOpenChange={setIsCmdOpen} />
     </div>
     </SystemConfigProvider>
+    </ErrorBoundary>
   );
 }
