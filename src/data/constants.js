@@ -127,7 +127,7 @@ export const TIMEOUTS = {
   QUERY_EXECUTE_BUFFER_MS: 10000, // Extra padding on top of Snowflake timeout (increased from 5s)
   QUERY_RESULTS_MS: 30000,       // Fetch query results
   QUERY_HISTORY_MS: 10000,       // Fetch query history
-  DEBOUNCE_MS: 5000,             // Minimum time between repeated metadata calls
+  DEBOUNCE_MS: 2000,             // Minimum time between repeated metadata calls (reduced from 5s for better UX)
 };
 
 /**

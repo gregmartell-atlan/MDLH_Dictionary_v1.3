@@ -28,23 +28,88 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 
 // Loading skeleton for graph - exported for use in parent components
-export function LineageSkeleton() {
+// Enhanced with smooth flowing animation to show data is loading
+export function LineageSkeleton({ message = 'Loading lineage...' }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
       <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
-        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 rounded-full bg-emerald-200 animate-pulse" />
+          <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+        </div>
       </div>
-      <div className="p-4 animate-pulse">
-        <div className="flex items-center justify-center gap-6">
-          <div className="w-36 h-11 bg-blue-50 border border-blue-200 rounded-lg" />
-          <div className="w-12 h-0.5 bg-gray-200" />
-          <div className="w-36 h-11 bg-emerald-50 border border-emerald-200 rounded-lg" />
-          <div className="w-12 h-0.5 bg-gray-200" />
-          <div className="w-36 h-11 bg-blue-50 border border-blue-200 rounded-lg" />
+      <div className="p-4 relative overflow-hidden">
+        {/* Animated flow effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent animate-shimmer"
+             style={{ animationDuration: '2s' }} />
+        <div className="flex items-center justify-center gap-4">
+          {/* Upstream nodes skeleton */}
+          <div className="flex flex-col gap-2">
+            <div className="w-36 h-11 bg-blue-50 border border-blue-200 rounded-lg animate-pulse" style={{ animationDelay: '0ms' }} />
+            <div className="w-36 h-11 bg-blue-50 border border-blue-200 rounded-lg animate-pulse" style={{ animationDelay: '100ms' }} />
+          </div>
+          {/* Arrow with animated flow */}
+          <div className="flex items-center">
+            <div className="w-8 h-0.5 bg-gradient-to-r from-blue-200 to-gray-300 animate-pulse" />
+            <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-gray-300" />
+          </div>
+          {/* Target node skeleton - highlighted */}
+          <div className="w-36 h-11 bg-emerald-50 border-2 border-emerald-300 rounded-lg shadow-sm animate-pulse" style={{ animationDelay: '200ms' }} />
+          {/* Arrow with animated flow */}
+          <div className="flex items-center">
+            <div className="w-8 h-0.5 bg-gradient-to-r from-gray-300 to-green-200 animate-pulse" />
+            <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-green-300" />
+          </div>
+          {/* Downstream nodes skeleton */}
+          <div className="flex flex-col gap-2">
+            <div className="w-36 h-11 bg-green-50 border border-green-200 rounded-lg animate-pulse" style={{ animationDelay: '300ms' }} />
+            <div className="w-36 h-11 bg-green-50 border border-green-200 rounded-lg animate-pulse" style={{ animationDelay: '400ms' }} />
+          </div>
+        </div>
+        {/* Loading message */}
+        <div className="text-center mt-4 text-xs text-gray-500 flex items-center justify-center gap-2">
+          <svg className="w-4 h-4 animate-spin text-emerald-500" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>{message}</span>
         </div>
       </div>
       <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/30">
         <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+// Animated rendering skeleton that shows nodes appearing one by one
+export function LineageRenderingSkeleton({ nodeCount = 5 }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 animate-spin text-emerald-500" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-xs font-medium text-gray-700">Rendering lineage graph...</span>
+        </div>
+      </div>
+      <div className="p-4">
+        <div className="flex items-center justify-center gap-6">
+          {Array.from({ length: nodeCount }).map((_, i) => (
+            <div
+              key={i}
+              className="w-36 h-11 rounded-lg border animate-fadeInScale"
+              style={{
+                animationDelay: `${i * 100}ms`,
+                animationFillMode: 'both',
+                backgroundColor: i === Math.floor(nodeCount / 2) ? '#ECFDF5' : '#EFF6FF',
+                borderColor: i === Math.floor(nodeCount / 2) ? '#10B981' : '#3B82F6'
+              }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

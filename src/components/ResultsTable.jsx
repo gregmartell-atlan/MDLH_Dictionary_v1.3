@@ -1,8 +1,13 @@
 /**
  * Results Table - Display query results with pagination and export
+ *
+ * Performance optimizations:
+ * - React.memo on main component and sub-components
+ * - Memoized cell renderers
+ * - Early return in detectMetadataResults
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, memo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -20,41 +25,50 @@ import { LineageRail } from './lineage/LineageRail';
 
 /**
  * Detect if results are from a SHOW TABLES or similar metadata query
+ * Optimized with early returns to avoid unnecessary checks
  * @param {Object} results - Query results
  * @returns {Object|null} - { type: 'tables'|'databases'|'schemas', nameColumn: string }
  */
 function detectMetadataResults(results) {
   if (!results?.columns || !results?.rows?.length) return null;
-  
-  const colNames = results.columns.map(c => 
+
+  // Pre-compute column names once (avoid recomputing in each check)
+  const colNames = results.columns.map(c =>
     (typeof c === 'string' ? c : c.name || '').toLowerCase()
   );
-  
+
+  const hasName = colNames.includes('name');
+  const hasKind = colNames.includes('kind');
+  const hasDbName = colNames.includes('database_name');
+  const hasCreatedOn = colNames.includes('created_on');
+  const hasTableName = colNames.includes('table_name');
+
   // SHOW TABLES results have "name" column and optionally "kind", "database_name", "schema_name"
-  if (colNames.includes('name') && (colNames.includes('kind') || colNames.includes('database_name'))) {
+  // Use early return for performance
+  if (hasName && (hasKind || hasDbName)) {
     return { type: 'tables', nameColumn: 'name' };
   }
-  
+
   // SHOW DATABASES results
-  if (colNames.includes('name') && colNames.includes('created_on') && !colNames.includes('kind')) {
+  if (hasName && hasCreatedOn && !hasKind) {
     return { type: 'databases', nameColumn: 'name' };
   }
-  
+
   // SHOW SCHEMAS results
-  if (colNames.includes('name') && colNames.includes('database_name') && !colNames.includes('kind')) {
+  if (hasName && hasDbName && !hasKind) {
     return { type: 'schemas', nameColumn: 'name' };
   }
-  
+
   // Generic results with a "name" column - could be entity tables
-  if (colNames.includes('name')) {
+  if (hasName) {
     return { type: 'generic', nameColumn: 'name' };
   }
-  
+
   // Results with TABLE_NAME column (common in information_schema)
-  if (colNames.includes('table_name')) {
+  if (hasTableName) {
     return { type: 'tables', nameColumn: 'table_name' };
   }
-  
+
   return null;
 }
 
@@ -165,15 +179,16 @@ function AlternativeSuggestions({
   );
 }
 
-function CopyButton({ text }) {
+// Memoized CopyButton to prevent unnecessary re-renders
+const CopyButton = memo(function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
-  
-  const handleCopy = async () => {
+
+  const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-  
+  }, [text]);
+
   return (
     <button
       onClick={handleCopy}
@@ -183,9 +198,29 @@ function CopyButton({ text }) {
       {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
     </button>
   );
-}
+});
 
-export default function ResultsTable({ 
+// Memoized table row component for better performance
+const TableRow = memo(function TableRow({ row, rowIndex, isSelected, onRowSelect }) {
+  return (
+    <tr
+      onClick={() => onRowSelect?.(rowIndex, row.original)}
+      className={`border-b border-gray-100 cursor-pointer transition-colors ${
+        isSelected
+          ? 'bg-blue-100 hover:bg-blue-100'
+          : 'hover:bg-blue-50/50'
+      }`}
+    >
+      {row.getVisibleCells().map(cell => (
+        <td key={cell.id} className="px-4 py-2 max-w-xs truncate">
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </td>
+      ))}
+    </tr>
+  );
+});
+
+function ResultsTableInner({ 
   results, 
   loading, 
   error,
@@ -587,26 +622,15 @@ export default function ResultsTable({
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row, rowIndex) => {
-              const isSelected = selectedRowIndex === rowIndex;
-              return (
-                <tr 
-                  key={row.id} 
-                  onClick={() => onRowSelect?.(rowIndex, row.original)}
-                  className={`border-b border-gray-100 cursor-pointer transition-colors ${
-                    isSelected 
-                      ? 'bg-blue-100 hover:bg-blue-100' 
-                      : 'hover:bg-blue-50/50'
-                  }`}
-                >
-                  {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} className="px-4 py-2 max-w-xs truncate">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
+            {table.getRowModel().rows.map((row, rowIndex) => (
+              <TableRow
+                key={row.id}
+                row={row}
+                rowIndex={rowIndex}
+                isSelected={selectedRowIndex === rowIndex}
+                onRowSelect={onRowSelect}
+              />
+            ))}
           </tbody>
         </table>
       </div>
@@ -640,3 +664,19 @@ export default function ResultsTable({
   );
 }
 
+// Custom comparison function for React.memo
+function arePropsEqual(prevProps, nextProps) {
+  // Only re-render if these key props change
+  return (
+    prevProps.results === nextProps.results &&
+    prevProps.loading === nextProps.loading &&
+    prevProps.error === nextProps.error &&
+    prevProps.selectedRowIndex === nextProps.selectedRowIndex &&
+    prevProps.alternatives === nextProps.alternatives &&
+    prevProps.alternativesLoading === nextProps.alternativesLoading
+  );
+}
+
+// Export memoized component for better performance
+const ResultsTable = memo(ResultsTableInner, arePropsEqual);
+export default ResultsTable;

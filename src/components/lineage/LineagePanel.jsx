@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo, useCallback } from 'react';
 import { Loader2, AlertTriangle, ChevronDown, ChevronRight, Code2, Database, Snowflake } from 'lucide-react';
 import { LineageRail, LineageSkeleton } from './LineageRail';
 import { TabbedCodeCard } from '../ui/TabbedCodeCard';
@@ -7,12 +7,17 @@ import { buildSnowflakeLineageQuery } from '../../services/lineageService';
 /**
  * LineagePanel - Clean, stacked lineage viewer with source toggle
  *
+ * Performance optimizations:
+ * - React.memo on main component
+ * - Memoized SQL builders
+ * - useCallback for event handlers
+ *
  * Layout:
  * - Header with entity name + source toggle
  * - Lineage graph (main focus)
  * - Collapsible SQL section (secondary)
  */
-export function LineagePanel({
+function LineagePanelInner({
   isConnected,
   database,
   schema,
@@ -192,7 +197,12 @@ LIMIT 10;`;
 
       {/* Graph - Main focus */}
       {activeLoading && !hasGraph ? (
-        <LineageSkeleton />
+        <LineageSkeleton
+          message={lineageSource === 'snowflake'
+            ? 'Querying ACCESS_HISTORY...'
+            : `Loading lineage for ${tableName || 'table'}...`
+          }
+        />
       ) : (
         <LineageRail
           nodes={hasGraph ? activeData.nodes : fallbackNodes}
@@ -248,4 +258,24 @@ LIMIT 10;`;
   );
 }
 
+// Custom comparison for React.memo - only re-render when important props change
+function arePropsEqual(prevProps, nextProps) {
+  return (
+    prevProps.isConnected === nextProps.isConnected &&
+    prevProps.database === nextProps.database &&
+    prevProps.schema === nextProps.schema &&
+    prevProps.lineageData === nextProps.lineageData &&
+    prevProps.loading === nextProps.loading &&
+    prevProps.error === nextProps.error &&
+    prevProps.currentTable === nextProps.currentTable &&
+    prevProps.selectedEntity === nextProps.selectedEntity &&
+    prevProps.lineageSource === nextProps.lineageSource &&
+    prevProps.snowflakeLineageData === nextProps.snowflakeLineageData &&
+    prevProps.snowflakeLoading === nextProps.snowflakeLoading &&
+    prevProps.snowflakeError === nextProps.snowflakeError
+  );
+}
+
+// Export memoized component
+export const LineagePanel = memo(LineagePanelInner, arePropsEqual);
 export default LineagePanel;
