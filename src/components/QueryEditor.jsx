@@ -1,6 +1,6 @@
 /**
  * Query Editor - Three-panel SQL workspace
- * Inspired by DuckDB's clean, dense UI
+ * Clean, dense UI for metadata exploration
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -194,7 +194,7 @@ LIMIT 100;`;
 }
 
 // =============================================================================
-// QUERY SUGGESTIONS - DuckDB-style dropdown with ready-to-run queries
+// QUERY SUGGESTIONS - Dropdown with ready-to-run queries
 // =============================================================================
 
 /**
@@ -409,7 +409,7 @@ LIMIT 20;`
 }
 
 /**
- * Query Suggestions Dropdown - DuckDB style
+ * Query Suggestions Dropdown
  * Shows ready-to-run queries with REAL values (no placeholders!)
  */
 function QuerySuggestionsDropdown({
@@ -545,7 +545,7 @@ function QuerySuggestionsDropdown({
 }
 
 // =============================================================================
-// TABLE SELECTOR - DuckDB-style with smart filters
+// TABLE SELECTOR - Smart filters and quick actions
 // =============================================================================
 
 // Table category detection for smart filtering
@@ -690,7 +690,7 @@ function TableSelector({
     setSearch('');
   };
   
-  // Category badge colors (DuckDB-inspired)
+  // Category badge colors
   const badgeColors = {
     violet: 'bg-gray-100 text-gray-700 border-gray-200',
     blue: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -716,7 +716,7 @@ function TableSelector({
   
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Trigger Button - DuckDB style */}
+      {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
@@ -733,7 +733,7 @@ function TableSelector({
       
       {isOpen && (
         <div className="absolute top-full left-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
-          {/* Header with Search - DuckDB style */}
+          {/* Header with Search */}
           <div className="p-3 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -747,7 +747,7 @@ function TableSelector({
               />
             </div>
             
-            {/* Filter Pills - DuckDB inspired */}
+            {/* Filter Pills */}
             <div className="flex flex-wrap gap-1.5 mt-2.5">
               {[
                 { id: 'all', label: 'All', icon: Layers },
@@ -944,7 +944,7 @@ function TableSelector({
 
 
 // =============================================================================
-// RESIZABLE PANEL COMPONENT - DuckDB-style with subtle handle
+// RESIZABLE PANEL COMPONENT
 // =============================================================================
 
 function ResizablePanel({ 
@@ -1003,7 +1003,7 @@ function ResizablePanel({
       style={{ [direction === 'horizontal' ? 'width' : 'height']: size }}
     >
       {children}
-      {/* Resize handle - DuckDB subtle style */}
+      {/* Resize handle */}
       <div
         className={`absolute group ${
           direction === 'horizontal' 
@@ -1030,7 +1030,7 @@ function ResizablePanel({
 }
   
 // =============================================================================
-// SCHEMA TREE COMPONENT - DuckDB-style Database Explorer
+// SCHEMA TREE COMPONENT - Database Explorer
 // =============================================================================
 
 function SchemaTree({
@@ -2620,8 +2620,6 @@ export default function QueryEditor({
   onSchemaChange,
   discoveredTables = new Set(), // Tables discovered from schema scan
   sampleEntities = null, // Sample entities with GUIDs
-  lastCategory = null, // Last sidebar category user was in
-  onBackToCategory = null, // Callback to navigate back to category
 }) {
   // Connection & query hooks
   const { 
@@ -2850,29 +2848,6 @@ LIMIT 25;`;
       
       {/* Center Panel - Editor + Results */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Context Ribbon - Shows which category user came from */}
-        {lastCategory && CATEGORY_INFO[lastCategory] && (
-          <div className="flex items-center justify-between px-4 py-2 bg-slate-100 border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              {(() => {
-                const CategoryIcon = CATEGORY_INFO[lastCategory].icon;
-                return CategoryIcon ? <CategoryIcon size={14} className="text-slate-600" /> : null;
-              })()}
-              <span className="text-sm text-slate-600">
-                Working in: <span className="font-medium text-slate-800">{CATEGORY_INFO[lastCategory].title}</span>
-              </span>
-            </div>
-            {onBackToCategory && (
-              <button
-                onClick={() => onBackToCategory(lastCategory)}
-                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
-              >
-                <ArrowLeft size={12} />
-                Back to {CATEGORY_INFO[lastCategory].title}
-              </button>
-            )}
-          </div>
-        )}
       {/* Toolbar */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-2">
@@ -2901,7 +2876,7 @@ LIMIT 25;`;
             
             <div className="h-5 w-px bg-slate-200 mx-1" />
             
-            {/* Query Suggestions - DuckDB style dropdown */}
+            {/* Query Suggestions */}
             <QuerySuggestionsDropdown
               database={selectedDatabase}
               schema={selectedSchema}

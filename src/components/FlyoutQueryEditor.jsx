@@ -1,6 +1,6 @@
 /**
- * FlyoutQueryEditor - DuckDB-style embedded SQL editor
- * 
+ * FlyoutQueryEditor - Embedded SQL editor
+ *
  * Clean, minimal design with:
  * - White code background
  * - Simple line numbers
@@ -75,7 +75,7 @@ function parseSqlError(error) {
 }
 
 /**
- * CompactResultsTable - DuckDB-style results display
+ * CompactResultsTable - Results display component
  * White background, clean borders, minimal styling
  * Enhanced with intelligent error analysis and "Run this instead?" actions
  */
@@ -292,7 +292,7 @@ function CompactResultsTable({ results, loading, error, suggestions = [], onAppl
     );
   }
 
-  // Data Table - DuckDB style
+  // Data Table
   const { executionTime } = results;
   const displayColumns = columnNames.slice(0, 8);
   const hasMoreColumns = columnNames.length > 8;
@@ -365,7 +365,7 @@ function CompactResultsTable({ results, loading, error, suggestions = [], onAppl
 }
 
 /**
- * FlyoutQueryEditorHeader - DuckDB minimal header
+ * FlyoutQueryEditorHeader - Minimal header component
  */
 function FlyoutQueryEditorHeader({
   title,
@@ -445,7 +445,7 @@ function FlyoutQueryEditorHeader({
 }
 
 /**
- * Main FlyoutQueryEditor Component - DuckDB style
+ * Main FlyoutQueryEditor Component
  */
 export default function FlyoutQueryEditor({ 
   initialQuery = '', 

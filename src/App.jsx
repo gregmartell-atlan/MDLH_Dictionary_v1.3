@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { Download, Copy, Check, Code2, X, Search, Command, Play, Loader2, Sparkles, ArrowLeft, Database, Snowflake, Wifi, WifiOff, ChevronDown, Zap, Layers } from 'lucide-react';
+import { Download, Copy, Check, Code2, X, Search, Command, Play, Loader2, Sparkles, ArrowLeft, Database, Snowflake, Wifi, WifiOff, ChevronDown, Zap, Layers, GitBranch } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 // Core components loaded immediately
 import ConnectionModal from './components/ConnectionModal';
 import QueryPanelShell from './components/QueryPanelShell';
-import CategorySidebar from './components/CategorySidebar';
+import HeaderTabs from './components/HeaderTabs';
+import DiscoveryHome from './components/DiscoveryHome';
+import EntityBrowser from './components/EntityBrowser';
+import EntityDetailPanel from './components/EntityDetailPanel';
 import { CommandPalette } from './components/search/CommandPalette';
 import { Callout } from './components/ui/Callout';
 import { TabbedCodeCard } from './components/ui/TabbedCodeCard';
@@ -51,6 +54,7 @@ const LoadingFallback = ({ message = 'Loading...' }) => (
 // Scoped loggers for App
 const appLog = createLogger('App');
 const uiLog = createLogger('UI');
+const browseLog = createLogger('BrowseTab');
 
 // Import data and utilities from extracted modules
 import { entities as data } from './data/entities';
@@ -241,7 +245,7 @@ function AtlanIcon({ size = 24, className = "" }) {
   );
 }
 
-// Global connection status indicator - DuckDB style: clean, minimal
+// Global connection status indicator
 function ConnectionIndicator({ status, loading, onClick, database, schema }) {
   const isConnected = status?.connected;
   const isUnreachable = status?.unreachable;
@@ -254,7 +258,7 @@ function ConnectionIndicator({ status, loading, onClick, database, schema }) {
   };
   const state = getState();
   
-  // DuckDB-style: simple dot indicator + text
+  // Simple dot indicator + text
   return (
     <button
       onClick={onClick}
@@ -906,13 +910,35 @@ export default function App() {
   // This MUST be first - it clears stale sessions before any other hooks run
   useBackendInstanceGuard();
   
+  // Main navigation: 'home' | 'browse' | 'editor'
+  const [activeMainTab, setActiveMainTab] = useState('home');
+
+  // Wrapper for tab changes with logging
+  const handleMainTabChange = useCallback((newTab) => {
+    try {
+      uiLog.debug('Main tab change requested', { from: activeMainTab, to: newTab });
+      if (!['home', 'browse', 'editor'].includes(newTab)) {
+        uiLog.warn('Invalid tab requested, ignoring', { tab: newTab });
+        return;
+      }
+      setActiveMainTab(newTab);
+      uiLog.info('Main tab changed', { tab: newTab });
+    } catch (err) {
+      uiLog.error('Error changing main tab', { error: err.message, tab: newTab });
+    }
+  }, [activeMainTab]);
+
+  // Legacy compatibility: activeTab for useMemo hooks that still reference it
+  // Default to 'core' to prevent undefined errors in legacy code
   const [activeTab, setActiveTab] = useState('core');
+
   const [search, setSearch] = useState('');
   const [showQueries, setShowQueries] = useState(false);
   const [highlightedQuery, setHighlightedQuery] = useState(null);
   const [editorQuery, setEditorQuery] = useState('');
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [browseSelectedRow, setBrowseSelectedRow] = useState(null); // Selected row in Browse tab
   const [selectedMDLHDatabase, setSelectedMDLHDatabase] = useState(IS_DEMO ? DEMO_DATABASE : 'FIELD_METADATA');
   const [selectedMDLHSchema, setSelectedMDLHSchema] = useState(IS_DEMO ? DEMO_SCHEMA : 'PUBLIC');
   const searchRef = useRef(null);
@@ -968,6 +994,50 @@ export default function App() {
   const handleOpenLineagePanel = useCallback((entityData = null) => {
     setSelectedLineageEntity(entityData);
     setShowLineageFlyout(true);
+  }, []);
+
+  // Handler to show recommendations panel for an entity row
+  const handleShowRecommendations = useCallback((row) => {
+    try {
+      browseLog.debug('handleShowRecommendations called', { row });
+      if (!row) {
+        browseLog.warn('handleShowRecommendations called with null/undefined row');
+        return;
+      }
+      const entityData = {
+        entity: row.entity,
+        table: row.table,
+        entityType: row.entityType || 'TABLE',
+        description: row.description
+      };
+      browseLog.debug('Setting selectedEntity', entityData);
+      setSelectedEntity(entityData);
+      setShowRecommendations(true);
+    } catch (err) {
+      browseLog.error('Error in handleShowRecommendations', { error: err.message, row });
+    }
+  }, []);
+
+  // Handler to show lineage for an entity row
+  const handleShowLineage = useCallback((row) => {
+    try {
+      browseLog.debug('handleShowLineage called', { row });
+      if (!row) {
+        browseLog.warn('handleShowLineage called with null/undefined row');
+        return;
+      }
+      const lineageData = {
+        NAME: row.table,
+        name: row.table,
+        GUID: row.guid || null,
+        guid: row.guid || null,
+      };
+      browseLog.debug('Setting selectedLineageEntity', lineageData);
+      setSelectedLineageEntity(lineageData);
+      setShowLineageFlyout(true);
+    } catch (err) {
+      browseLog.error('Error in handleShowLineage', { error: err.message, row });
+    }
   }, []);
 
   // Command palette state
@@ -1710,18 +1780,26 @@ export default function App() {
         </div>
       )}
 
-      {/* Navigation Bar - DuckDB style: clean white, minimal */}
+      {/* Navigation Bar */}
       <nav className="border-b border-gray-200 bg-white sticky top-0 z-30">
         <div className="max-w-full mx-auto px-6 py-3 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <AtlanIcon size={28} />
-            <span className="font-semibold text-lg text-gray-900">MDLH</span>
+          {/* Logo + Header Tabs */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <AtlanIcon size={28} />
+              <span className="font-semibold text-lg text-gray-900">MDLH</span>
+            </div>
+
+            {/* 3-Tab Navigation */}
+            <HeaderTabs
+              activeTab={activeMainTab}
+              onTabChange={handleMainTabChange}
+            />
           </div>
           
           {/* Right side controls */}
           <div className="flex items-center gap-2">
-            {/* Search - DuckDB style: simple input with icon */}
+            {/* Search */}
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -1789,7 +1867,8 @@ export default function App() {
         <UnreachableBanner onRetry={globalTestConnection} />
       )}
 
-      {/* Hero Section - DuckDB style: white bg, bold headlines, blue highlights */}
+      {/* Hero Section - HIDDEN: Now replaced by DiscoveryHome tab */}
+      {false && (
       <div className="mx-6 mt-8 mb-6">
         <div className="max-w-4xl">
           {/* Headline with highlighted keyword */}
@@ -1799,10 +1878,10 @@ export default function App() {
             dictionary
           </h1>
           <p className="text-lg text-slate-600 mt-4 max-w-2xl">
-            Explore MDLH entity types, tables, attributes, and example queries using DuckDB's feature-rich SQL dialect
+            Explore MDLH entity types, tables, attributes, and example queries using Snowflake SQL
           </p>
-          
-          {/* Action buttons - DuckDB style: dark primary, white secondary, text tertiary */}
+
+          {/* Action buttons */}
           <div className="flex flex-wrap items-center gap-3 mt-6">
             <button
               onClick={() => {
@@ -1830,7 +1909,7 @@ export default function App() {
             </button>
           </div>
           
-          {/* Database & Schema Selector - cleaner DuckDB style */}
+          {/* Database & Schema Selector */}
           <div className="flex flex-wrap items-center gap-3 mt-6 pt-6 border-t border-slate-200">
             <div className="flex items-center gap-2">
               <Database size={14} className="text-slate-400" />
@@ -1914,440 +1993,316 @@ export default function App() {
           )}
         </div>
       </div>
-
-      {/* Discovery Cards - "What do you want to know?" - shown in demo mode */}
-      {/* Now context-aware: filters cards based on active sidebar category */}
-      {IS_DEMO && (
-        <div className="mx-6 mb-6">
-          <DiscoveryCards
-            database={selectedMDLHDatabase}
-            schema={selectedMDLHSchema}
-            compact={true}
-            sidebarCategory={activeTab !== 'editor' ? activeTab : null}
-            maxCards={4}
-            onSelectQuery={(sql) => {
-              // Save current category before switching to editor
-              if (activeTab !== 'editor') {
-                setLastCategory(activeTab);
-              }
-              setEditorQuery(sql);
-              setActiveTab('editor');
-            }}
-            onViewAllQueries={() => setShowQueries(true)}
-            onExploreMore={() => {
-              // Clear category filter to show all cards
-              setActiveTab('core');
-              setShowQueries(true);
-            }}
-          />
-        </div>
       )}
 
-      {/* Lineage is now available in the flyout panel - click the lineage icon in Query Editor toolbar */}
+      {/* Main Content - Tab-based */}
+      <main className="flex-1 overflow-hidden flex flex-col">
+        {/* Home Tab - Discovery Cards */}
+        {activeMainTab === 'home' && (
+          <DiscoveryHome
+            database={selectedMDLHDatabase}
+            schema={selectedMDLHSchema}
+            isConnected={isConnected}
+            onSelectQuery={(sql, query) => {
+              setEditorQuery(sql);
+              setActiveMainTab('editor');
+            }}
+            onOpenInEditor={(sql, query) => {
+              setEditorQuery(sql);
+              setActiveMainTab('editor');
+            }}
+            onSwitchToEditor={() => setActiveMainTab('editor')}
+          />
+        )}
 
-      {/* Main Layout with Left Sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Category Navigation */}
-        <CategorySidebar
-          tabs={tabs}
-          selectedId={activeTab}
-          onSelect={setActiveTab}
-          defaultCollapsed={false}
-        />
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Not Connected Banner */}
-          {!isConnected && !globalConnectionLoading && (
-            <div className="mx-6 mt-4 mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Snowflake size={18} className="text-blue-600" />
+        {/* Browse Tab - Entity Browser Tree + Data Table */}
+        {activeMainTab === 'browse' && (
+          <ErrorBoundary
+            fallback={
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <p className="text-red-600 font-medium mb-2">Something went wrong in the Browse tab</p>
+                  <p className="text-gray-500 text-sm mb-4">Check the browser console for details</p>
+                  <button
+                    onClick={() => setActiveMainTab('home')}
+                    className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm"
+                  >
+                    Return to Home
+                  </button>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">Connect to Snowflake to unlock full features</p>
-                  <p className="text-xs text-gray-600 mt-0.5">
-                    See which MDLH tables exist, validate queries, and execute SQL directly
+              </div>
+            }
+            onError={(error, info) => {
+              browseLog.error('ErrorBoundary caught error in Browse tab', {
+                error: error.message,
+                stack: error.stack,
+                componentStack: info?.componentStack
+              });
+            }}
+          >
+          <div className="flex flex-1 overflow-hidden">
+            {/* Left: Entity Browser Tree */}
+            <EntityBrowser
+              database={selectedMDLHDatabase}
+              schema={selectedMDLHSchema}
+              onOpenInEditor={(sql, query) => {
+                setEditorQuery(sql);
+                setActiveMainTab('editor');
+              }}
+              onCategoryChange={(categoryId) => setActiveTab(categoryId || 'core')}
+              selectedCategory={activeTab}
+            />
+
+            {/* Right: Entity Data Table */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Not Connected Banner */}
+              {!isConnected && !globalConnectionLoading && (
+                <div className="mx-4 mt-4 mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Snowflake size={18} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Connect to Snowflake to unlock full features</p>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        See which MDLH tables exist, validate queries, and execute SQL directly
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowConnectionModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Snowflake size={14} />
+                    Connect
+                  </button>
+                </div>
+              )}
+
+              {/* Main Content - Data Table */}
+              <div className="flex-1 overflow-auto px-4 py-4">
+                {/* Category Header */}
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {tabs.find(t => t.id === activeTab)?.label || 'All Entities'}
+                    </h2>
+                    <span className="text-sm text-gray-500">
+                      {tabs.find(t => t.id === activeTab)?.description}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Database size={14} className="text-gray-400" />
+                    <span>MDLH context:</span>
+                    <span className="font-mono px-2 py-0.5 bg-gray-100 rounded text-gray-800">
+                      {selectedMDLHDatabase}.{selectedMDLHSchema}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filter bar */}
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <div className="flex items-center gap-3">
+                    {/* Availability filter toggle */}
+                    <button
+                      onClick={() => setShowOnlyAvailable(!showOnlyAvailable)}
+                      disabled={!isConnected || discoveredTables.size === 0}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                        showOnlyAvailable && isConnected && discoveredTables.size > 0
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                          : 'bg-gray-100 text-gray-600 border border-gray-200'
+                      } ${!isConnected || discoveredTables.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-emerald-400'}`}
+                      title={!isConnected ? 'Connect to Snowflake to filter by availability' : showOnlyAvailable ? 'Showing only queryable tables' : 'Show all tables'}
+                    >
+                      {showOnlyAvailable && isConnected ? <Check size={14} /> : <Database size={14} />}
+                      <span>{showOnlyAvailable ? 'Showing queryable only' : 'Show only queryable'}</span>
+                    </button>
+
+                    {/* Stats badges */}
+                    {isConnected && discoveredTables.size > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full">
+                          {availableEntities} queryable
+                        </span>
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                          {totalEntities} total
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Discovery status */}
+                  {isDiscovering && (
+                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Discovering tables...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Data Table */}
+                <div className="overflow-x-auto bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        {columns[activeTab]?.map(col => (
+                          <th key={col} className="px-4 py-3 text-left font-semibold text-gray-700 border-b border-gray-200 text-xs uppercase tracking-wider">
+                            {colHeaders[col]}
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b border-gray-200 text-xs uppercase tracking-wider w-32">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredData.length > 0 ? (
+                        filteredData.map((row, i) => (
+                          <tr
+                            key={i}
+                            className={`group cursor-pointer transition-colors duration-150 ${
+                              browseSelectedRow?.entity === row.entity
+                                ? 'bg-blue-100 hover:bg-blue-100'
+                                : 'hover:bg-blue-50/50'
+                            }`}
+                            onClick={() => setBrowseSelectedRow(row)}
+                          >
+                            {columns[activeTab]?.map(col => {
+                              const cellValue = row[col];
+                              return (
+                                <td key={col} className="px-4 py-3 align-top">
+                                  {col === 'entity' ? (
+                                    <span className="inline-flex items-center">
+                                      <span className="font-semibold text-[#3366FF]">{cellValue}</span>
+                                      <CellCopyButton text={cellValue} />
+                                    </span>
+                                  ) : col === 'table' ? (
+                                    <div className="inline-flex items-center gap-1.5">
+                                      {cellValue === '(abstract)' ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                                          <span className="text-gray-400">-</span>
+                                          Abstract
+                                        </span>
+                                      ) : (
+                                        <>
+                                          {isConnected && discoveredTables.size > 0 && (
+                                            isTableAvailable(cellValue) ? (
+                                              <span title="Table exists in MDLH" className="text-green-500">
+                                                <Check size={14} />
+                                              </span>
+                                            ) : (
+                                              <span title="Table not found" className="text-gray-400">
+                                                <X size={14} />
+                                              </span>
+                                            )
+                                          )}
+                                          <span className={`font-mono px-2 py-0.5 rounded text-xs ${
+                                            isTableAvailable(cellValue) === false
+                                              ? 'text-gray-500 bg-gray-50'
+                                              : 'text-emerald-600 bg-emerald-50'
+                                          }`}>{cellValue}</span>
+                                          <CellCopyButton text={cellValue} />
+                                        </>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-600 text-xs leading-relaxed">{cellValue}</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleShowRecommendations(row)}
+                                  className="px-2.5 py-1 text-xs font-medium text-[#3366FF] bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                                  title="View recommended queries"
+                                >
+                                  Query
+                                </button>
+                                {row.table && row.table !== '(abstract)' && (
+                                  <button
+                                    onClick={() => handleShowLineage(row)}
+                                    className="p-1.5 text-gray-400 hover:text-[#3366FF] hover:bg-blue-50 rounded transition-colors"
+                                    title="View lineage"
+                                  >
+                                    <GitBranch size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={(columns[activeTab]?.length || 0) + 1} className="px-4 py-12 text-center">
+                            {search ? (
+                              <>
+                                <Search size={32} className="mx-auto text-gray-300 mb-2" />
+                                <p className="text-gray-600 font-medium">No results found</p>
+                                <p className="text-gray-400 text-xs mt-1">Try adjusting your search terms</p>
+                              </>
+                            ) : (
+                              <>
+                                <Database size={32} className="mx-auto text-gray-300 mb-2" />
+                                <p className="text-gray-600 font-medium">No entities in this category</p>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-gray-500">
+                    Showing <span className="text-gray-900 font-medium">{filteredData.length}</span> of <span className="text-gray-900 font-medium">{data[activeTab]?.length || 0}</span> entities
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Press <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono text-xs">K</kbd> to search
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowConnectionModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                <Snowflake size={14} />
-                Connect
-              </button>
             </div>
-          )}
 
-          {/* Main Content */}
-          <div className={`flex-1 overflow-auto ${activeTab === 'editor' ? 'px-4 py-3' : 'px-6 py-6'}`}>
-            {/* Editor Mode Header */}
-            {activeTab === 'editor' && (
-              <div className="flex items-center gap-3 mb-3">
-                {/* Language tabs like DuckDB */}
-                <div className="flex items-center gap-1 px-2 py-1.5 bg-slate-100 rounded-xl">
-                  <button className="px-3 py-1 text-xs font-medium bg-white text-slate-800 rounded-lg shadow-sm">
-                    SQL
-                  </button>
-                  <button className="px-3 py-1 text-xs font-medium text-slate-400 rounded-lg cursor-not-allowed" disabled>
-                    Python
-                  </button>
-                  <button className="px-3 py-1 text-xs font-medium text-slate-400 rounded-lg cursor-not-allowed" disabled>
-                    R
-                  </button>
-                </div>
+            {/* Right: Entity Detail Panel */}
+            <EntityDetailPanel
+              selectedEntity={browseSelectedRow}
+              category={activeTab}
+              database={selectedMDLHDatabase}
+              schema={selectedMDLHSchema}
+              onOpenInEditor={(sql, query) => {
+                setEditorQuery(sql);
+                setActiveMainTab('editor');
+              }}
+              onClose={() => setBrowseSelectedRow(null)}
+            />
+          </div>
+          </ErrorBoundary>
+        )}
 
-                <div className="h-5 w-px bg-slate-200" />
-
-                {/* Quick switch back to dictionary */}
-                <button
-                  onClick={() => setActiveTab('core')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:text-blue-600 transition-colors"
-                >
-                  <Layers size={12} />
-                  Dictionary
-                </button>
-              </div>
-            )}
-        
-        {/* MDLH Context Header */}
-        {activeTab !== 'editor' && (
-          <div className="flex items-center justify-between mb-4 px-1">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h2>
-              <span className="text-sm text-gray-500">
-                {tabs.find(t => t.id === activeTab)?.description}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Database size={14} className="text-gray-400" />
-              <span>MDLH context:</span>
-              <span className="font-mono px-2 py-0.5 bg-gray-100 rounded text-gray-800">
-                {selectedMDLHDatabase}.{selectedMDLHSchema}
-              </span>
-            </div>
+        {/* Editor Tab - Query Editor */}
+        {activeMainTab === 'editor' && (
+          <div className="flex-1 overflow-auto px-4 py-3">
+            <Suspense fallback={<LoadingFallback message="Loading query editor..." />}>
+              <QueryEditor
+                initialQuery={editorQuery}
+                onOpenConnectionModal={() => setShowConnectionModal(true)}
+                globalDatabase={selectedMDLHDatabase}
+                globalSchema={selectedMDLHSchema}
+                onDatabaseChange={setSelectedMDLHDatabase}
+                onSchemaChange={setSelectedMDLHSchema}
+                discoveredTables={discoveredTables}
+                sampleEntities={sampleEntities}
+                onOpenLineagePanel={handleOpenLineagePanel}
+              />
+            </Suspense>
           </div>
         )}
+      </main>
 
-        {/* Conditional Content: Query Editor or Data Table */}
-        {activeTab === 'editor' ? (
-          <Suspense fallback={<LoadingFallback message="Loading query editor..." />}>
-            <QueryEditor
-              initialQuery={editorQuery}
-              onOpenConnectionModal={() => setShowConnectionModal(true)}
-              globalDatabase={selectedMDLHDatabase}
-              globalSchema={selectedMDLHSchema}
-              onDatabaseChange={setSelectedMDLHDatabase}
-              onSchemaChange={setSelectedMDLHSchema}
-              discoveredTables={discoveredTables}
-              sampleEntities={sampleEntities}
-              onOpenLineagePanel={handleOpenLineagePanel}
-              lastCategory={lastCategory}
-              onBackToCategory={handleBackToCategory}
-            />
-          </Suspense>
-        ) : (
-          <>
-            {/* Filter bar - availability toggle */}
-            <div className="flex items-center justify-between mb-4 px-1">
-              <div className="flex items-center gap-3">
-                {/* Availability filter toggle */}
-                <button
-                  onClick={() => setShowOnlyAvailable(!showOnlyAvailable)}
-                  disabled={!isConnected || discoveredTables.size === 0}
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    showOnlyAvailable && isConnected && discoveredTables.size > 0
-                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                      : 'bg-gray-100 text-gray-600 border border-gray-200'
-                  } ${!isConnected || discoveredTables.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-emerald-400'}`}
-                  title={!isConnected ? 'Connect to Snowflake to filter by availability' : showOnlyAvailable ? 'Showing only queryable tables' : 'Show all tables'}
-                >
-                  {showOnlyAvailable && isConnected ? <Check size={14} /> : <Database size={14} />}
-                  <span>{showOnlyAvailable ? 'Showing queryable only' : 'Show only queryable'}</span>
-                </button>
-                
-                {/* Stats badges */}
-                {isConnected && discoveredTables.size > 0 && (
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full">
-                      {availableEntities} queryable
-                    </span>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
-                      {totalEntities} total
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Discovery status */}
-              {isDiscovering && (
-                <div className="flex items-center gap-2 text-sm text-blue-600">
-                  <Loader2 size={14} className="animate-spin" />
-                  <span>Discovering tables...</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="overflow-x-auto bg-white rounded-xl border border-gray-200 shadow-sm">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50">
-                    {columns[activeTab]?.map(col => (
-                      <th key={col} className="px-4 py-3 text-left font-semibold text-gray-700 border-b border-gray-200 text-xs uppercase tracking-wider">
-                        {colHeaders[col]}
-                      </th>
-                    ))}
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b border-gray-200 text-xs uppercase tracking-wider w-32">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredData.length > 0 ? (
-                    filteredData.map((row, i) => (
-                      <tr key={i} className="group hover:bg-blue-50/50 transition-colors duration-150">
-                        {columns[activeTab]?.map(col => {
-                          const cellValue = row[col];
-                          const tableFqn = col === 'table' && cellValue && cellValue !== '(abstract)'
-                            ? buildSafeFQN(selectedMDLHDatabase, selectedMDLHSchema, cellValue)
-                            : null;
-                          const preview = tableFqn ? lineagePreviewCache[tableFqn] : null;
-
-                          return (
-                            <td key={col} className="px-4 py-3 align-top">
-                              {col === 'entity' ? (
-                                <span className="inline-flex items-center">
-                                  <span className="font-semibold text-[#3366FF]">{cellValue}</span>
-                                  <CellCopyButton text={cellValue} />
-                                </span>
-                              ) : col === 'table' ? (
-                                <div 
-                                  className="relative inline-flex items-center gap-1.5"
-                                  onMouseEnter={() => handleTableHover(cellValue)}
-                                  onMouseLeave={clearTableHover}
-                                >
-                                  {/* Table availability indicator */}
-                                  {cellValue === '(abstract)' ? (
-                                    <span 
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs"
-                                      title="This is an abstract concept with no direct table representation"
-                                    >
-                                      <span className="text-gray-400">⚬</span>
-                                      Abstract
-                                    </span>
-                                  ) : (
-                                    <>
-                                      {isConnected && discoveredTables.size > 0 && (
-                                        isTableAvailable(cellValue) ? (
-                                          <span title="Table exists in MDLH" className="text-green-500">
-                                            <Check size={14} />
-                                          </span>
-                                        ) : (
-                                          <span title="Table not found in this database/schema" className="text-gray-400">
-                                            <X size={14} />
-                                          </span>
-                                        )
-                                      )}
-                                      {isDiscovering && (
-                                        <Loader2 size={14} className="animate-spin text-gray-400" />
-                                      )}
-                                      <span className={`font-mono px-2 py-0.5 rounded text-xs ${
-                                        isTableAvailable(cellValue) === false
-                                          ? 'text-gray-500 bg-gray-50'
-                                          : 'text-emerald-600 bg-emerald-50'
-                                      }`}>{cellValue}</span>
-                                      <CellCopyButton text={cellValue} />
-                                    </>
-                                  )}
-
-                                  {/* Hover lineage preview */}
-                                  {hoveredTable === cellValue && (
-                                    <div className="absolute left-0 top-full mt-2 z-30 w-[440px]">
-                                      <div className="bg-white border border-gray-200 rounded-lg shadow-xl p-3 space-y-2">
-                                        <div className="flex items-start justify-between gap-2">
-                                          <div>
-                                            <p className="text-xs font-semibold text-gray-800">
-                                              Lineage preview (last 30 days)
-                                            </p>
-                                            <p className="text-[11px] text-gray-500 font-mono break-all">
-                                              {tableFqn}
-                                            </p>
-                                          </div>
-                                          {preview?.status === 'loading' && (
-                                            <Loader2 size={14} className="text-blue-500 animate-spin" />
-                                          )}
-                                          {preview?.status === 'ready' && (
-                                            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200">
-                                              Ready
-                                            </span>
-                                          )}
-                                        </div>
-
-                                        {preview?.status === 'error' && (
-                                          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
-                                            {preview.error}
-                                          </div>
-                                        )}
-
-                                        {preview?.status === 'ready' && preview.graph?.nodes?.length > 0 && (
-                                          <div className="border border-gray-100 rounded-lg overflow-hidden">
-                                            <Suspense fallback={<LoadingFallback message="Loading lineage..." />}>
-                                              <LineageRail
-                                                nodes={preview.graph.nodes}
-                                                edges={preview.graph.edges}
-                                                metadata={preview.graph.metadata}
-                                                title="Lineage"
-                                              />
-                                            </Suspense>
-                                          </div>
-                                        )}
-
-                                        {preview?.status === 'ready' && (!preview.graph?.nodes?.length) && (
-                                          <p className="text-xs text-gray-500">
-                                            No lineage edges found for this asset.
-                                          </p>
-                                        )}
-
-                                        {!preview && (
-                                          <p className="text-xs text-gray-500">Preparing lineage preview…</p>
-                                        )}
-
-                                        <div className="bg-gray-50 border border-gray-100 rounded p-2">
-                                          <p className="text-[10px] text-gray-500 mb-1 font-medium">SQL used</p>
-                                          <pre className="text-[10px] text-gray-800 font-mono whitespace-pre-wrap">
-                                            {(preview && preview.query) || (tableFqn ? buildLineagePreviewQuery(tableFqn) : '')}
-                                          </pre>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : col === 'exampleQuery' ? (
-                                <span className="inline-flex items-center">
-                                  <code className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded text-xs break-all">{cellValue}</code>
-                                  {cellValue && <CellCopyButton text={cellValue} />}
-                                </span>
-                              ) : (
-                                <span className="text-gray-600">{cellValue}</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                        <td className="px-4 py-3 align-top">
-                          <div className="flex items-center gap-1">
-                            {/* View/Test Query button */}
-                            <PlayQueryButton 
-                              hasQuery={hasQueryForEntity(row.entity, row.table, row.exampleQuery)}
-                              onClick={() => openQueryForEntity(row.entity, row.table, row.exampleQuery)}
-                              tableAvailable={isTableAvailable(row.table)}
-                              isConnected={isConnected}
-                            />
-                            {/* Recommended Queries button */}
-                            {row.table && row.table !== '(abstract)' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedEntity({
-                                    entity: row.entity,
-                                    table: row.table,
-                                    entityType: row.entityType || 'TABLE',
-                                    description: row.description
-                                  });
-                                  setShowRecommendations(true);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 px-2 py-1 rounded text-xs font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-all flex items-center gap-1"
-                                title="Show recommended queries for this entity"
-                              >
-                                <Zap size={12} />
-                                <span className="hidden lg:inline">Recommend</span>
-                              </button>
-                            )}
-                            {/* Copy table name - only for non-abstract */}
-                            {row.table && row.table !== '(abstract)' && (
-                              <button
-                                onClick={() => navigator.clipboard.writeText(row.table)}
-                                className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-                                title="Copy table name"
-                              >
-                                <Copy size={12} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={(columns[activeTab]?.length || 0) + 1} className="px-4 py-12 text-center">
-                        {isConnected && showOnlyAvailable && discoveredTables.size > 0 ? (
-                          <>
-                            <Database size={32} className="mx-auto text-gray-300 mb-2" />
-                            <p className="text-gray-600 font-medium">No queryable tables found</p>
-                            <p className="text-gray-400 text-sm mt-1">
-                              No tables for this category exist in {selectedMDLHDatabase}.{selectedMDLHSchema}
-                            </p>
-                            <button
-                              onClick={() => setShowOnlyAvailable(false)}
-                              className="mt-3 text-sm text-blue-600 hover:text-blue-700"
-                            >
-                              Show all entities
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <Search size={32} className="mx-auto text-gray-300 mb-2" />
-                            <p className="text-gray-600 font-medium">No results found</p>
-                            <p className="text-gray-400 text-xs mt-1">Try adjusting your search terms</p>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                Showing <span className="text-gray-900 font-medium">{filteredData.length}</span> of <span className="text-gray-900 font-medium">{data[activeTab]?.length || 0}</span> entities in <span className="text-[#3366FF] font-medium">{tabs.find(t => t.id === activeTab)?.label}</span>
-              </p>
-              <p className="text-sm text-gray-400">
-                Press <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono text-xs">⌘K</kbd> to search • Click <span className="text-[#3366FF]">Query</span> buttons for SQL examples
-              </p>
-            </div>
-          </>
-        )}
-        </div>
-      </div>
-    </div>
-
-      {/* Query Side Panel */}
-      <QueryPanel 
-        isOpen={showQueries} 
-        onClose={() => {
-          setShowQueries(false);
-          setHighlightedQuery(null);
-        }} 
-        queries={filteredQueries}
-        categoryLabel={tabs.find(t => t.id === activeTab)?.label}
-        highlightedQuery={highlightedQuery}
-        onRunInEditor={openInEditor}
-        isLoading={loadingColumns}
-        discoveredTables={discoveredTables}
-        isConnected={isConnected}
-        batchValidationResults={batchValidationResults}
-        onShowMyWork={handleShowMyWork}
-        isBatchValidating={isBatchValidating}
-        selectedDatabase={selectedMDLHDatabase}
-        selectedSchema={selectedMDLHSchema}
-        queryValidationMap={queryValidationMap}
-        onValidateAll={runBatchValidation}
-        onOpenConnectionModal={() => setShowConnectionModal(true)}
-      />
-      
       {/* Lineage Flyout Panel */}
       <QueryPanelShell
         isOpen={showLineageFlyout}

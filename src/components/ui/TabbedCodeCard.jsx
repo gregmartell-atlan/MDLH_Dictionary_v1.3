@@ -2,15 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { Copy, Check, ArrowRight, ChevronUp } from 'lucide-react';
 
 /**
- * TabbedCodeCard - DuckDB-style code card
- * 
- * Design reference: duckdb.org homepage
- * - White code background (not dark)
+ * TabbedCodeCard - Code card component
+ *
+ * Features:
+ * - White code background
  * - Pill-shaped language tabs (dark when active)
  * - Line numbers right-aligned in gray
- * - Syntax highlighting: cyan keywords, magenta numbers
- * - Simple "Select ▼" dropdown with text items
- * - Text CTA with arrow "Live demo →"
+ * - Syntax highlighting: cyan keywords, blue numbers
+ * - Simple dropdown with text items
+ * - Text CTA with arrow
  */
 export function TabbedCodeCard({
   title,
@@ -48,7 +48,7 @@ export function TabbedCodeCard({
     }
   };
 
-  // DuckDB-style syntax highlighting - SAFE version without problematic regexes
+  // SQL syntax highlighting - SAFE version without problematic regexes
   const highlightCode = (code) => {
     if (!code) return null;
     
@@ -116,7 +116,7 @@ export function TabbedCodeCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-      {/* Language tabs - DuckDB style: pill in gray container */}
+      {/* Language tabs */}
       <div className="px-4 pt-4 pb-3">
         <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-1">
           {languages.map((lang) => (
@@ -136,17 +136,17 @@ export function TabbedCodeCard({
         </div>
       </div>
 
-      {/* Code block - DuckDB style: WHITE background, line numbers */}
+      {/* Code block */}
       <div className="px-4 py-4 bg-white text-gray-800 text-[13px] font-mono leading-relaxed border-t border-gray-100">
         {highlightCode(activeSnippet?.code) || (
           <span className="text-gray-400">-- no snippet available</span>
         )}
       </div>
 
-      {/* Footer - DuckDB style: simple dropdown + text CTA */}
+      {/* Footer */}
       {(variants?.length || cta) && (
         <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-          {/* Dropdown - DuckDB style: "Select ▼" */}
+          {/* Dropdown */}
           {variants?.length ? (
             <div className="relative">
               <button
@@ -161,7 +161,7 @@ export function TabbedCodeCard({
                 />
               </button>
               
-              {/* Dropdown menu - DuckDB style: clean, no icons */}
+              {/* Dropdown menu */}
               {dropdownOpen && (
                 <div className="absolute bottom-full left-0 mb-1 min-w-[200px] bg-white rounded-lg border border-gray-200 shadow-lg z-10 py-1">
                   {variants.map((v) => (
@@ -200,7 +200,7 @@ export function TabbedCodeCard({
               {copied ? 'Copied!' : 'Copy'}
             </button>
 
-            {/* CTA - DuckDB style: text with arrow */}
+            {/* CTA */}
             {cta && (
               <button
                 type="button"

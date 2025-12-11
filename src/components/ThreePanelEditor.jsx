@@ -1,16 +1,15 @@
 /**
- * DuckDB-Style Query Editor
- * 
- * Follows the 3-panel layout principle:
+ * Three Panel Query Editor
+ *
+ * 3-panel layout:
  * - Left: Schema browser (collapsible to icons)
- * - Center: Editor (dominant, the star)
+ * - Center: Editor (dominant)
  * - Bottom: Results/Logs (tabbed, with peek bar)
- * 
+ *
  * Design principles:
  * - Editor is visually dominant
  * - Fast animations (150-200ms)
  * - Keyboard-first (Cmd+Enter to run)
- * - No hiding important stuff on hover
  * - Consistent iconography
  */
 
@@ -26,7 +25,7 @@ import {
 import { buildSafeFQN } from '../utils/queryHelpers';
 
 // =============================================================================
-// DESIGN TOKENS - DuckDB-inspired
+// DESIGN TOKENS
 // =============================================================================
 
 const tokens = {
@@ -440,7 +439,7 @@ function LogsTab({ error, executionTime }) {
 }
 
 // =============================================================================
-// LANGUAGE TABS (DuckDB style)
+// LANGUAGE TABS
 // =============================================================================
 
 function LanguageTabs({ activeLanguage = 'sql', onChange }) {
@@ -512,7 +511,7 @@ function QueryTypeBadge({ sql }) {
 // MAIN EDITOR COMPONENT
 // =============================================================================
 
-export default function DuckDBStyleEditor({
+export default function ThreePanelEditor({
   initialQuery = '',
   database = 'FIELD_METADATA',
   schema = 'PUBLIC',

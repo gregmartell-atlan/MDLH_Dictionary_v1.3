@@ -8,9 +8,9 @@ import { buildDynamicRecommendations, getAvailableQueryCategories } from '../uti
 import { getTableMetadata } from '../utils/tableDiscovery';
 
 /**
- * RecommendedQueries - DuckDB-style query recommendations panel
- * 
- * Design reference: duckdb.org dropdown menus and cards
+ * RecommendedQueries - Query recommendations panel
+ *
+ * Features:
  * - Clean white modal with subtle borders
  * - Category selector dropdown
  * - Clean query list items
@@ -27,7 +27,7 @@ const categoryIcons = {
   default: Code2
 };
 
-// Query item component - DuckDB style
+// Query item component
 function QueryItem({ query, onRun, onCopy }) {
   const [copied, setCopied] = useState(false);
   const Icon = categoryIcons[query.category] || categoryIcons.default;
@@ -213,7 +213,7 @@ export default function RecommendedQueries({
       onClick={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden border border-slate-200">
-        {/* Header - DuckDB style: clean, white */}
+        {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200">
           <div className="flex items-center justify-between">
             <div>
@@ -253,7 +253,7 @@ export default function RecommendedQueries({
           </div>
         </div>
         
-        {/* Tab bar - DuckDB style pill tabs */}
+        {/* Tab bar */}
         <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 bg-slate-200/50 rounded-lg p-1">

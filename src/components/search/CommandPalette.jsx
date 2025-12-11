@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Database, Columns, LayoutDashboard, ArrowRight } from 'lucide-react';
 
 /**
- * CommandPalette - DuckDB-style global search overlay
- * 
- * Design reference: duckdb.org search
+ * CommandPalette - Global search overlay (Cmd+K)
+ *
+ * Features:
  * - Clean white modal
  * - Simple search input
  * - Minimal result items

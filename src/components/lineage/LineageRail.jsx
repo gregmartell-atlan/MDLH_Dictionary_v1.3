@@ -11,7 +11,7 @@ const log = createLogger('LineageRail');
  * 1. Visual graph of upstream → target → downstream flow
  * 2. Collapsible table of raw process results
  *
- * Design: Clean, minimal SVG diagram (DuckDB-inspired)
+ * Design: Clean, minimal SVG diagram
  * Color Palette: Monochrome + Blue + Green
  *
  * Performance optimizations:

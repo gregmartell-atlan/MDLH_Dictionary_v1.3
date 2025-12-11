@@ -1,6 +1,6 @@
 /**
- * StepWizard Component - DuckDB-style guided query builder
- * 
+ * StepWizard Component - Guided query builder
+ *
  * Clean, minimal design with:
  * - White background throughout
  * - Simple step indicators
@@ -435,7 +435,7 @@ function ExtractedData({ data, title = "Extracted data" }) {
 }
 
 /**
- * Main StepWizard component - DuckDB style
+ * Main StepWizard component
  */
 export default function StepWizard({
   flowId = 'lineage_downstream',
@@ -685,7 +685,7 @@ export default function StepWizard({
   
   return (
     <div className="flex flex-col h-full bg-white rounded-xl border border-gray-200 overflow-hidden">
-      {/* Header - DuckDB clean white */}
+      {/* Header */}
       <div className="px-4 py-3 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-gray-100 rounded-lg">
@@ -792,7 +792,7 @@ export default function StepWizard({
         )}
       </div>
       
-      {/* Footer - DuckDB minimal */}
+      {/* Footer */}
       <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
         <div>
           {canGoBack && (

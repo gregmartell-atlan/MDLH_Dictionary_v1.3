@@ -106,7 +106,7 @@ function QueryCard({
     setTimeout(() => setCopied(false), 2000);
   };
   
-  // Get status label for badges - DuckDB style: subtle, clean
+  // Get status label for badges
   const getStatusLabel = () => {
     if (isValidated && !isAutoFixed) return { 
       text: rowCount ? `${rowCount.toLocaleString()} rows` : 'Valid', 
@@ -133,12 +133,12 @@ function QueryCard({
   
   const statusLabel = getStatusLabel();
   
-  // DuckDB-style card: minimal chrome, clean borders
+  // Card with minimal chrome, clean borders
   return (
     <div className={`bg-white rounded-xl border overflow-hidden transition-all duration-150 ${
       expanded ? 'border-gray-300' : 'border-gray-200 hover:border-gray-300'
     }`}>
-      {/* Card Header - DuckDB minimal style */}
+      {/* Card Header */}
       <div 
         className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded(!expanded)}
@@ -163,7 +163,7 @@ function QueryCard({
           <p className="text-gray-500 text-xs mt-0.5 truncate">{description}</p>
         </div>
         
-        {/* Actions - DuckDB minimal: text links + one primary button */}
+        {/* Actions */}
         <div className="flex items-center gap-3 flex-shrink-0 ml-4">
           {/* Text actions */}
           <div className="hidden sm:flex items-center gap-3 text-xs">
@@ -386,7 +386,7 @@ export default function QueryLibraryLayout({
 
   return (
     <>
-      {/* Header - DuckDB style: clean, minimal */}
+      {/* Header */}
       <header className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white flex-shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">
@@ -405,7 +405,7 @@ export default function QueryLibraryLayout({
         </button>
       </header>
 
-      {/* Context bar - DuckDB style */}
+      {/* Context bar */}
       <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between text-xs flex-shrink-0">
         <div className="flex items-center gap-2 text-slate-600">
           {isConnected ? (
@@ -439,7 +439,7 @@ export default function QueryLibraryLayout({
         )}
       </div>
 
-      {/* Query list - DuckDB style: clean white bg */}
+      {/* Query list */}
       <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-white">
         {/* Connection status banner - subtle */}
         {isConnected && discoveredTables.size > 0 && (

@@ -2,9 +2,9 @@ import React from 'react';
 import { Info, AlertTriangle, Lightbulb, AlertCircle } from 'lucide-react';
 
 /**
- * Callout - DuckDB-style callout/admonition component
- * 
- * Design reference: DuckDB documentation callouts
+ * Callout - Callout/admonition component
+ *
+ * Features:
  * - Clean border-left accent
  * - Subtle background
  * - Icon + label header

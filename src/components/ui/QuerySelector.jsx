@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, Play, ArrowRight } from 'lucide-react';
 
 /**
- * QuerySelector - DuckDB-style dropdown for selecting query variants
- * 
- * Design reference: duckdb.org homepage "Select" dropdown
+ * QuerySelector - Dropdown for selecting query variants
+ *
+ * Features:
  * - Clean dropdown trigger with chevron
  * - White dropdown panel with clean list
  * - Checkmark for selected item
@@ -109,8 +109,8 @@ export function QuerySelector({
 }
 
 /**
- * QueryCategoryList - DuckDB-style list of query categories
- * 
+ * QueryCategoryList - List of query categories
+ *
  * Like the dropdown menu but as a persistent list
  */
 export function QueryCategoryList({
@@ -174,7 +174,7 @@ export function QueryCategoryList({
 }
 
 /**
- * QueryListItem - Single query item in DuckDB style
+ * QueryListItem - Single query item component
  */
 export function QueryListItem({
   label,
