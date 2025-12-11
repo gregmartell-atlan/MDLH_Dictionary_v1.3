@@ -953,7 +953,7 @@ export default function App() {
   const [isValidating, setIsValidating] = useState(false);
   // Demo mode: Always connected
   const [isConnected, setIsConnected] = useState(IS_DEMO);
-  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true); // Filter to show only queryable entities
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(false); // Filter to show only queryable entities
   const [queryValidationMap, setQueryValidationMap] = useState(new Map()); // Pre-validated queries
   
   // Dynamic queries - transformed to use actual discovered table names with FQNs
@@ -2185,22 +2185,7 @@ export default function App() {
                                         </span>
                                       ) : (
                                         <>
-                                          {isConnected && discoveredTables.size > 0 && (
-                                            isTableAvailable(cellValue) ? (
-                                              <span title="Table exists in MDLH" className="text-green-500">
-                                                <Check size={14} />
-                                              </span>
-                                            ) : (
-                                              <span title="Table not found" className="text-gray-400">
-                                                <X size={14} />
-                                              </span>
-                                            )
-                                          )}
-                                          <span className={`font-mono px-2 py-0.5 rounded text-xs ${
-                                            isTableAvailable(cellValue) === false
-                                              ? 'text-gray-500 bg-gray-50'
-                                              : 'text-emerald-600 bg-emerald-50'
-                                          }`}>{cellValue}</span>
+                                          <span className="font-mono px-2 py-0.5 rounded text-xs text-emerald-600 bg-emerald-50">{cellValue}</span>
                                           <CellCopyButton text={cellValue} />
                                         </>
                                       )}
