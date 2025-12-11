@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // For GitHub Pages deployment - Demo version
-  base: '/MDLH_Dictionary_v2.0_demo/',
+  // For GitHub Pages deployment
+  base: '/MDLH_Dictionary_v1.3/',
 
   // Build optimizations
   build: {
